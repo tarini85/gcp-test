@@ -32,5 +32,5 @@ ingress:
   hosts:
     - host: myapp.applicaiton-service.com
       paths:
-        - path: /
+        - path: /health
           pathType: Prefix
