@@ -1,1 +1,55 @@
+name: Build Docker Image From Subfolder and Push to GCR
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  IMAGE_NAME: patient-service
+  GCR_HOSTNAME: gcr.io
+  DOCKER_CONTEXT: gcp-test/patient-service
+  DOCKERFILE_PATH: gcp-test/patient-service/src/Dockerfile
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Authenticate to Google Cloud
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker $GCR_HOSTNAME --quiet
+
+      # Build Docker image from specific path
+      - name: Build Docker image
+        run: |
+          docker build \
+            -f $DOCKERFILE_PATH \
+            -t $GCR_HOSTNAME/$PROJECT_ID/$IMAGE_NAME:${{ github.sha }} \
+            $DOCKER_CONTEXT
+
+      - name: Push Docker image
+        run: |
+          docker push $GCR_HOSTNAME/$PROJECT_ID/$IMAGE_NAME:${{ github.sha }}
+
+      - name: Tag and push latest
+        run: |
+          docker tag \
+            $GCR_HOSTNAME/$PROJECT_ID/$IMAGE_NAME:${{ github.sha }} \
+            $GCR_HOSTNAME/$PROJECT_ID/$IMAGE_NAME:latest
+
+          docker push $GCR_HOSTNAME/$PROJECT_ID/$IMAGE_NAME:latest
 
